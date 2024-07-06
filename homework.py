@@ -33,12 +33,12 @@ logger = logging.getLogger(__name__)
 
 
 def check_tokens():
-    """Проверяет доступность переменных окружения"""
+    """Проверяет доступность переменных окружения."""
     return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def send_message(bot, message):
-    """Отправляет сообщение"""
+    """Отправляет сообщение."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logger.debug('Сообщение отправлено в Telegram')
@@ -47,7 +47,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(timestamp):
-    """Делает запрос к эндпоинту API сервиса"""
+    """Делает запрос к эндпоинту API сервиса."""
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -58,13 +58,13 @@ def get_api_answer(timestamp):
             raise requests.RequestException(
                 f'Код ответа API: {response.status_code}')
         return response.json()
-    except requests.RequestException:
+    except requests.RequestException as error:
         logger.error(f'Ошибка при запросе к API: {error}')
-        raise
+        raise RuntimeError(f'Ошибка при запросе к API: {error}')
 
 
 def check_response(response):
-    """Проверяет ответ API на соответствие документации"""
+    """Проверяет ответ API на соответствие документации."""
     if not isinstance(response, dict):
         raise TypeError('Ответ API не является словарем')
     if 'homeworks' not in response:
@@ -93,7 +93,6 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-
     if not check_tokens():
         logger.critical('Отсутствуют необходимые переменные окружения')
         return
