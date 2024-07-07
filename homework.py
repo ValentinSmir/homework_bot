@@ -35,6 +35,7 @@ logger.addHandler(handlers)
 
 
 class ErrorRequestingAPI(Exception):
+    """Кастомная ошибка кода ответа API."""
     pass
 
 
@@ -109,6 +110,19 @@ def parse_status(homework):
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
+def error_handing(bot, error, last_message):
+    """Обработка ошибок и обновление сообщения."""
+    message = f'Сбой в работе программы: {error}'
+    logger.error(message)
+    if last_message != message:
+        try:
+            if send_message(bot, message):
+                last_message = message
+        except Exception as error:
+            logger.error(f'Ошибка при отправке сообщения: {error}')
+    return last_message
+
+
 def main():
     """Основная логика работы бота."""
     if not check_tokens():
@@ -127,14 +141,7 @@ def main():
                 if send_message(bot, message):
                     timestamp = response.get('current_date', timestamp)
         except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            logger.error(message)
-            if last_message != message:
-                try:
-                    if send_message(bot, message):
-                        last_message = message
-                except Exception as error:
-                    logger.error(f'Ошибка при отправке сообщения: {error}')
+            error_handing(bot, error, last_message)
         finally:
             time.sleep(RETRY_PERIOD)
 
