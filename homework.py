@@ -2,13 +2,14 @@ import logging
 import os
 import sys
 import time
-from dotenv import load_dotenv
 from http import HTTPStatus
-from telebot import TeleBot
 
+from dotenv import load_dotenv
 import requests
+from telebot import TeleBot
 from telebot.apihelper import ApiException
 
+from exceptions import ErrorRequestingAPI
 
 load_dotenv()
 
@@ -32,12 +33,6 @@ logger = logging.getLogger(__name__)
 handlers = logging.StreamHandler(sys.stdout)
 handlers.setLevel(logging.DEBUG)
 logger.addHandler(handlers)
-
-
-class ErrorRequestingAPI(Exception):
-    """Кастомная ошибка кода ответа API."""
-
-    pass
 
 
 def check_tokens():
@@ -93,18 +88,17 @@ def check_response(response):
         raise KeyError('Ключ "homeworks" отсутствует в ответе API')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
-        raise TypeError('Значение ключа "homeworks" не является списком')
+        raise TypeError('Значение ключа "homeworks" не является списком, '
+                        f'получили: {type(homeworks)}')
     return homeworks
 
 
 def parse_status(homework):
     """Извлекает из информации о домашней работе статус этой работы."""
     if 'status' not in homework or 'homework_name' not in homework:
-        logger.error('Отсутствуют ожидаемые ключи в ответе API')
         raise KeyError('Отсутствуют ожидаемые ключи в ответе API')
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
-        logger.error(f'Неожиданный статус домашней работы: {status}')
         raise ValueError(f'Неожиданный статус домашней работы: {status}')
     homework_name = homework['homework_name']
     verdict = HOMEWORK_VERDICTS[status]
@@ -116,11 +110,8 @@ def error_handing(bot, error, last_message):
     message = f'Сбой в работе программы: {error}'
     logger.error(message)
     if last_message != message:
-        try:
-            if send_message(bot, message):
-                last_message = message
-        except Exception as error:
-            logger.error(f'Ошибка при отправке сообщения: {error}')
+        if send_message(bot, message):
+            last_message = message
     return last_message
 
 
@@ -141,8 +132,9 @@ def main():
                 message = parse_status(homeworks[0])
                 if send_message(bot, message):
                     timestamp = response.get('current_date', timestamp)
+                    last_message = None
         except Exception as error:
-            error_handing(bot, error, last_message)
+            last_message = error_handing(bot, error, last_message)
         finally:
             time.sleep(RETRY_PERIOD)
 
